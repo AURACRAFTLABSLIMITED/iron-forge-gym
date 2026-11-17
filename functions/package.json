@@ -1,0 +1,23 @@
+{
+  "name": "gym-management-functions",
+  "description": "Firebase Cloud Functions v2 (Node.js 20) for online payments, scheduled membership tasks, triggers, and RBAC \u2014 Created by AURA CRAFT LABS LIMITED.",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "type": "module",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "serve": "firebase emulators:start --only functions,firestore",
+    "shell": "firebase functions:shell",
+    "logs": "firebase functions:log",
+    "deploy": "firebase deploy --only functions",
+    "make-admin": "node scripts/makeFirstAdmin.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.2.0",
+    "firebase-functions": "^6.3.2",
+    "stripe": "^17.7.0",
+    "@sfpy/node-sdk": "latest"
+  }
+}

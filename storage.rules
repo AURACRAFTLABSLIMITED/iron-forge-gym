@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// Created by AURA CRAFT LABS LIMITED.
+// Firebase Storage Security Rules for gym media, member avatars, and branding assets.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'officalceoaliimran@gmail.com' &&
+        request.auth.token.email_verified == true
+      );
+    }
+
+    function isValidImageUpload() {
+      return request.resource != null &&
+        request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+
+    // Member profile avatars: public read, owner-only write (max 5MB image)
+    match /avatars/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId && isValidImageUpload();
+    }
+
+    // Gym catalog media folders: public read, admin-only write
+    match /{folder}/{fileName} {
+      allow read: if folder in [
+        'packages', 'classes', 'trainers', 'posts', 'gallery', 'events', 'products', 'branding'
+      ];
+      allow write: if folder in [
+        'packages', 'classes', 'trainers', 'posts', 'gallery', 'events', 'products', 'branding'
+      ] && isAdmin() && isValidImageUpload();
+    }
+  }
+}

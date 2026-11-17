@@ -1,0 +1,6 @@
+{
+  "name": "IronForge Athletics — Gym Website & Management System",
+  "description": "Production-ready white-label gym website, class booking platform, e-commerce shop, member portal, and admin management system created by AURA CRAFT LABS LIMITED.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

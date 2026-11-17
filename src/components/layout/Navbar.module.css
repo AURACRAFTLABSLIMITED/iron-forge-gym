@@ -1,0 +1,54 @@
+/**
+ * Created by AURA CRAFT LABS LIMITED.
+ * File: src/components/layout/Navbar.module.css
+ * Purpose: CSS Module for sticky responsive navigation bar.
+ */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background-color: rgba(11, 13, 14, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  min-height: 64px;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.navLink {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0.35rem 0;
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.navLink:hover,
+.navLinkActive {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}

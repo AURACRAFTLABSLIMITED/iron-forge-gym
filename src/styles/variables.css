@@ -1,0 +1,47 @@
+/**
+ * Created by AURA CRAFT LABS LIMITED.
+ * File: src/styles/variables.css
+ * Purpose: Core CSS custom properties for typography, spacing, surface colors, and the dynamic accent color.
+ */
+
+:root {
+  /* 60% Dominant Obsidian Canvas */
+  --bg-canvas: #0b0d0e;
+  /* 30% Structural Surfaces */
+  --bg-surface: #14171a;
+  --bg-elevated: #1c2024;
+  --bg-hover: #23282d;
+
+  /* Borders & Hairlines */
+  --border-hairline: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Typography Ink */
+  --text-primary: #f4f5f6;
+  --text-secondary: #b4bcc6;
+  --text-muted: #848d98;
+
+  /* 10% Accent Budget (Overridden at runtime by theme.js from gymConfig / Firestore) */
+  --accent: #a4d614;
+  --accent-rgb: 164, 214, 20;
+  --accent-ink: #0b0d0e;
+
+  /* Semantic Status Colors */
+  --status-success: #22c55e;
+  --status-warning: #eab308;
+  --status-danger: #ef4444;
+
+  /* Typography Families */
+  --font-display: 'Barlow Condensed', system-ui, -apple-system, sans-serif;
+  --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Radius Scale */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 160ms var(--ease-out-expo);
+}

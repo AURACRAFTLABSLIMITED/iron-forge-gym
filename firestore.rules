@@ -1,0 +1,576 @@
+rules_version = '2';
+
+// Created by AURA CRAFT LABS LIMITED.
+// Firestore Security Rules (including Stage 8 server-enforced payment, expiry, role claim,
+// class capacity, email queue, and webhook idempotency protections).
+// Audited with @firebase/eslint-plugin-security-rules before deployment.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Core Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // STAGE 8C UPDATE:
+    // Checks custom Auth token claim `request.auth.token.role == 'admin'` (set via setUserRole
+    // Cloud Function or makeFirstAdmin.js), while also honoring `/admins/{uid}` marker documents
+    // and the verified bootstrap owner email so admin access works seamlessly in all setups.
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.role == 'admin' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'officalceoaliimran@gmail.com' &&
+         request.auth.token.email_verified == true)
+      );
+    }
+
+    function isOptionalString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isOptionalNumber(data, key, minVal) {
+      return !(key in data) || ((data[key] is int || data[key] is float) && data[key] >= minVal);
+    }
+
+    // --- Entity Validation Helpers ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'membershipStatus', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'uid', 'displayName', 'email', 'phone', 'photoURL', 'emergencyContact',
+          'planId', 'planName', 'planStartDate', 'planExpiryDate', 'membershipStatus',
+          'role', 'reminderSent',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+        data.email is string && data.email.size() <= 254 &&
+        data.membershipStatus in ['none', 'active', 'expired', 'pending'] &&
+        (!( 'role' in data ) || data.role in ['member', 'admin']) &&
+        (!( 'reminderSent' in data ) || data.reminderSent is bool) &&
+        isOptionalString(data, 'phone', 40) &&
+        isOptionalString(data, 'photoURL', 2000) &&
+        isOptionalString(data, 'emergencyContact', 200) &&
+        isOptionalString(data, 'planId', 128) &&
+        isOptionalString(data, 'planName', 120) &&
+        isOptionalString(data, 'planStartDate', 40) &&
+        isOptionalString(data, 'planExpiryDate', 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPackage(data) {
+      return data.keys().hasAll(['name', 'price', 'billingCycle', 'durationDays', 'features', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'name', 'audience', 'price', 'billingCycle', 'durationDays',
+          'badgeText', 'featured', 'features', 'description', 'createdAt', 'updatedAt'
+        ]) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        (data.price is int || data.price is float) && data.price >= 0 &&
+        data.billingCycle in ['Monthly', 'Quarterly', 'Yearly', 'Day Pass'] &&
+        (data.durationDays is int || data.durationDays is float) && data.durationDays >= 1 &&
+        data.features is list && data.features.size() <= 20 &&
+        (data.features.size() == 0 || data.features[0] is string) &&
+        isOptionalString(data, 'audience', 120) &&
+        isOptionalString(data, 'badgeText', 40) &&
+        isOptionalString(data, 'description', 1000) &&
+        (!( 'featured' in data ) || data.featured is bool) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidClass(data) {
+      return data.keys().hasAll([
+          'title', 'category', 'trainerName', 'dayOfWeek', 'startTime', 'endTime',
+          'level', 'capacity', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'title', 'category', 'trainerId', 'trainerName', 'dayOfWeek', 'startTime',
+          'endTime', 'level', 'capacity', 'bookedCount', 'room', 'description', 'createdAt', 'updatedAt'
+        ]) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+        data.trainerName is string && data.trainerName.size() >= 1 && data.trainerName.size() <= 120 &&
+        data.dayOfWeek in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] &&
+        data.startTime is string && data.startTime.size() >= 1 && data.startTime.size() <= 20 &&
+        data.endTime is string && data.endTime.size() >= 1 && data.endTime.size() <= 20 &&
+        data.level in ['Beginner', 'Advanced', 'Expert'] &&
+        (data.capacity is int || data.capacity is float) && data.capacity >= 1 &&
+        isOptionalNumber(data, 'bookedCount', 0) &&
+        isOptionalString(data, 'trainerId', 128) &&
+        isOptionalString(data, 'room', 80) &&
+        isOptionalString(data, 'description', 1000) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll([
+          'userId', 'userName', 'classId', 'classTitle', 'dayOfWeek', 'startTime',
+          'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'userId', 'userName', 'userEmail', 'classId', 'classTitle', 'dayOfWeek',
+          'startTime', 'trainerName', 'status', 'cancellationReason', 'createdAt', 'updatedAt'
+        ]) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120 &&
+        data.classId is string && isValidId(data.classId) &&
+        data.classTitle is string && data.classTitle.size() >= 1 && data.classTitle.size() <= 120 &&
+        data.dayOfWeek in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] &&
+        data.startTime is string && data.startTime.size() >= 1 && data.startTime.size() <= 20 &&
+        data.status in ['confirmed', 'cancelled'] &&
+        isOptionalString(data, 'userEmail', 254) &&
+        isOptionalString(data, 'trainerName', 120) &&
+        isOptionalString(data, 'cancellationReason', 200) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidTrainer(data) {
+      return data.keys().hasAll(['name', 'role', 'specialty', 'bio', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'name', 'role', 'specialty', 'experienceYears', 'bio', 'photoUrl',
+          'certifications', 'instagram', 'createdAt', 'updatedAt'
+        ]) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.role is string && data.role.size() >= 1 && data.role.size() <= 120 &&
+        data.specialty is string && data.specialty.size() >= 1 && data.specialty.size() <= 120 &&
+        data.bio is string && data.bio.size() >= 1 && data.bio.size() <= 1500 &&
+        isOptionalNumber(data, 'experienceYears', 0) &&
+        isOptionalString(data, 'photoUrl', 2000) &&
+        isOptionalString(data, 'certifications', 400) &&
+        isOptionalString(data, 'instagram', 200) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPost(data) {
+      return data.keys().hasAll([
+          'title', 'slug', 'category', 'excerpt', 'content', 'authorName',
+          'published', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'title', 'slug', 'category', 'excerpt', 'content', 'authorName',
+          'coverImage', 'readTime', 'published', 'createdAt', 'updatedAt'
+        ]) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 200 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+        data.excerpt is string && data.excerpt.size() >= 1 && data.excerpt.size() <= 400 &&
+        data.content is string && data.content.size() >= 1 && data.content.size() <= 20000 &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 120 &&
+        data.published is bool &&
+        isOptionalString(data, 'coverImage', 2000) &&
+        isOptionalString(data, 'readTime', 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidGalleryItem(data) {
+      return data.keys().hasAll(['title', 'category', 'imageUrl', 'createdAt']) &&
+        data.keys().hasOnly(['title', 'category', 'imageUrl', 'caption', 'createdAt']) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+        data.imageUrl is string && data.imageUrl.size() >= 1 && data.imageUrl.size() <= 2000 &&
+        isOptionalString(data, 'caption', 300) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll([
+          'title', 'date', 'time', 'location', 'category', 'description', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'title', 'date', 'time', 'location', 'category', 'description',
+          'imageUrl', 'price', 'capacity', 'createdAt', 'updatedAt'
+        ]) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+        data.date is string && data.date.size() >= 1 && data.date.size() <= 40 &&
+        data.time is string && data.time.size() >= 1 && data.time.size() <= 40 &&
+        data.location is string && data.location.size() >= 1 && data.location.size() <= 160 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 4000 &&
+        isOptionalString(data, 'imageUrl', 2000) &&
+        isOptionalNumber(data, 'price', 0) &&
+        isOptionalNumber(data, 'capacity', 1) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll([
+          'name', 'category', 'price', 'stock', 'description', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'name', 'category', 'price', 'compareAtPrice', 'stock', 'description',
+          'imageUrl', 'featured', 'createdAt', 'updatedAt'
+        ]) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 160 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+        (data.price is int || data.price is float) && data.price >= 0 &&
+        (data.stock is int || data.stock is float) && data.stock >= 0 &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 3000 &&
+        isOptionalNumber(data, 'compareAtPrice', 0) &&
+        isOptionalString(data, 'imageUrl', 2000) &&
+        (!( 'featured' in data ) || data.featured is bool) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+          'userId', 'customerName', 'customerEmail', 'customerPhone', 'items',
+          'total', 'paymentMethod', 'orderType', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'userId', 'customerName', 'customerEmail', 'customerPhone', 'shippingAddress',
+          'items', 'total', 'paymentMethod', 'paymentProvider', 'paymentStatus',
+          'orderType', 'packageId', 'packageName', 'packageDurationDays',
+          'providerSessionId', 'providerRef', 'status', 'notes', 'paidAt',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+        data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 120 &&
+        data.customerEmail is string && data.customerEmail.size() >= 3 && data.customerEmail.size() <= 254 &&
+        data.customerPhone is string && data.customerPhone.size() >= 1 && data.customerPhone.size() <= 40 &&
+        data.items is list && data.items.size() >= 1 && data.items.size() <= 30 &&
+        data.items[0] is map &&
+        (data.total is int || data.total is float) && data.total >= 0 &&
+        data.paymentMethod is string && data.paymentMethod.size() >= 1 && data.paymentMethod.size() <= 80 &&
+        (!( 'paymentProvider' in data ) || data.paymentProvider in ['cash', 'stripe', 'custom']) &&
+        (!( 'paymentStatus' in data ) || data.paymentStatus in ['unpaid', 'paid']) &&
+        data.orderType in ['shop', 'membership'] &&
+        data.status in ['pending', 'processing', 'ready', 'completed', 'cancelled'] &&
+        isOptionalString(data, 'shippingAddress', 400) &&
+        isOptionalString(data, 'packageId', 128) &&
+        isOptionalString(data, 'packageName', 120) &&
+        isOptionalNumber(data, 'packageDurationDays', 1) &&
+        isOptionalString(data, 'providerSessionId', 256) &&
+        isOptionalString(data, 'providerRef', 256) &&
+        isOptionalString(data, 'notes', 500) &&
+        (!( 'paidAt' in data ) || data.paidAt is timestamp) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['memberId', 'memberName', 'checkedInBy', 'checkInTime', 'createdAt']) &&
+        data.keys().hasOnly([
+          'memberId', 'memberName', 'memberPhone', 'checkedInBy', 'notes', 'checkInTime', 'createdAt'
+        ]) &&
+        data.memberId is string && data.memberId.size() >= 1 && data.memberId.size() <= 128 &&
+        data.memberName is string && data.memberName.size() >= 1 && data.memberName.size() <= 120 &&
+        data.checkedInBy is string && data.checkedInBy.size() >= 1 && data.checkedInBy.size() <= 128 &&
+        isOptionalString(data, 'memberPhone', 40) &&
+        isOptionalString(data, 'notes', 300) &&
+        data.checkInTime is timestamp &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['name', 'email', 'subject', 'message', 'read', 'createdAt']) &&
+        data.keys().hasOnly(['name', 'email', 'phone', 'subject', 'message', 'read', 'createdAt']) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 200 &&
+        data.message is string && data.message.size() >= 1 && data.message.size() <= 4000 &&
+        data.read is bool &&
+        isOptionalString(data, 'phone', 40) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidNewsletter(data) {
+      return data.keys().hasAll(['email', 'createdAt']) &&
+        data.keys().hasOnly(['email', 'createdAt']) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['gymName', 'accentColor', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'gymName', 'shortName', 'tagline', 'description', 'logoUrl', 'accentColor',
+          'currencySymbol', 'paymentProvider', 'phone', 'email', 'address', 'mapEmbedUrl',
+          'workingHours', 'heroSlides', 'classCategories', 'socialLinks', 'updatedAt'
+        ]) &&
+        data.gymName is string && data.gymName.size() >= 1 && data.gymName.size() <= 120 &&
+        data.accentColor is string && data.accentColor.size() >= 4 && data.accentColor.size() <= 20 &&
+        (!( 'paymentProvider' in data ) || data.paymentProvider in ['cash', 'stripe', 'custom']) &&
+        isOptionalString(data, 'shortName', 60) &&
+        isOptionalString(data, 'tagline', 200) &&
+        isOptionalString(data, 'description', 1000) &&
+        isOptionalString(data, 'logoUrl', 2000) &&
+        isOptionalString(data, 'currencySymbol', 10) &&
+        isOptionalString(data, 'phone', 40) &&
+        isOptionalString(data, 'email', 254) &&
+        isOptionalString(data, 'address', 300) &&
+        isOptionalString(data, 'mapEmbedUrl', 2000) &&
+        (!( 'workingHours' in data ) || (data.workingHours is list && data.workingHours.size() <= 14)) &&
+        (!( 'heroSlides' in data ) || (data.heroSlides is list && data.heroSlides.size() <= 10)) &&
+        (!( 'classCategories' in data ) || (data.classCategories is list && data.classCategories.size() <= 30)) &&
+        (!( 'socialLinks' in data ) || data.socialLinks is map) &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    // Admins: readable by self or admin; written ONLY via Firebase Console or setUserRole/makeFirstAdmin Admin SDK
+    match /admins/{uid} {
+      allow get: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // STAGE 8 SECURITY UPDATE — Users (Members):
+    // Non-admin clients can NEVER write role, membershipStatus, planId, planName, planStartDate,
+    // planExpiryDate, or reminderSent. Only Cloud Functions (Admin SDK) or Admins can update plans/expiry.
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isValidId(userId) &&
+        isValidUser(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (isOwner(userId) &&
+            incoming().uid == request.auth.uid &&
+            incoming().membershipStatus == 'none' &&
+            (!('role' in incoming()) || incoming().role == 'member') &&
+            (!('planId' in incoming()) || incoming().planId == '') &&
+            (!('planStartDate' in incoming()) || incoming().planStartDate == '') &&
+            (!('planExpiryDate' in incoming()) || incoming().planExpiryDate == '') &&
+            (!('reminderSent' in incoming()) || incoming().reminderSent == false))
+        );
+      allow update: if isValidId(userId) &&
+        isValidUser(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().uid == existing().uid &&
+        (
+          isAdmin() ||
+          // Regular member can ONLY update basic personal contact details & avatar
+          (isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'phone', 'photoURL', 'emergencyContact', 'updatedAt'
+            ]))
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // Packages: public catalog read, admin write
+    match /packages/{packageId} {
+      allow get: if isValidId(packageId);
+      allow list: if true;
+      allow create: if isValidId(packageId) && isAdmin() && isValidPackage(incoming()) &&
+        incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(packageId) && isAdmin() && isValidPackage(incoming()) &&
+        incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isValidId(packageId) && isAdmin();
+    }
+
+    // Classes: public schedule read, admin write (bookedCount updated via Cloud Function Admin SDK)
+    match /classes/{classId} {
+      allow get: if isValidId(classId);
+      allow list: if true;
+      allow create: if isValidId(classId) && isAdmin() && isValidClass(incoming()) &&
+        incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(classId) && isAdmin() && isValidClass(incoming()) &&
+        incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isValidId(classId) && isAdmin();
+    }
+
+    // Bookings: owner or admin read/list; member create with verified class existence; cancel-only self update
+    match /bookings/{bookingId} {
+      allow get: if isValidId(bookingId) && isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isValidId(bookingId) &&
+        isSignedIn() &&
+        isValidBooking(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'confirmed' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/classes/$(incoming().classId));
+      allow update: if isValidId(bookingId) &&
+        isSignedIn() &&
+        isValidBooking(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().classId == existing().classId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (isOwner(existing().userId) &&
+            existing().status == 'confirmed' &&
+            incoming().status == 'cancelled' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+        );
+      allow delete: if isValidId(bookingId) && (isOwner(existing().userId) || isAdmin());
+    }
+
+    // Trainers: public read, admin write
+    match /trainers/{trainerId} {
+      allow get: if isValidId(trainerId);
+      allow list: if true;
+      allow create: if isValidId(trainerId) && isAdmin() && isValidTrainer(incoming()) &&
+        incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(trainerId) && isAdmin() && isValidTrainer(incoming()) &&
+        incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isValidId(trainerId) && isAdmin();
+    }
+
+    // Blog Posts: public read for published (admin reads all), admin write
+    match /posts/{postId} {
+      allow get: if isValidId(postId) && (existing().published == true || isAdmin());
+      allow list: if isAdmin() || resource.data.published == true;
+      allow create: if isValidId(postId) && isAdmin() && isValidPost(incoming()) &&
+        incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(postId) && isAdmin() && isValidPost(incoming()) &&
+        incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isValidId(postId) && isAdmin();
+    }
+
+    // Gallery: public read, admin write
+    match /gallery/{itemId} {
+      allow get: if isValidId(itemId);
+      allow list: if true;
+      allow create: if isValidId(itemId) && isAdmin() && isValidGalleryItem(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(itemId) && isAdmin() && isValidGalleryItem(incoming()) &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(itemId) && isAdmin();
+    }
+
+    // Events: public read, admin write
+    match /events/{eventId} {
+      allow get: if isValidId(eventId);
+      allow list: if true;
+      allow create: if isValidId(eventId) && isAdmin() && isValidEvent(incoming()) &&
+        incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(eventId) && isAdmin() && isValidEvent(incoming()) &&
+        incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isValidId(eventId) && isAdmin();
+    }
+
+    // Products: public read, admin write
+    match /products/{productId} {
+      allow get: if isValidId(productId);
+      allow list: if true;
+      allow create: if isValidId(productId) && isAdmin() && isValidProduct(incoming()) &&
+        incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(productId) && isAdmin() && isValidProduct(incoming()) &&
+        incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isValidId(productId) && isAdmin();
+    }
+
+    // STAGE 8 SECURITY UPDATE — Orders:
+    // 1. Regular signed-in clients can ONLY create unpaid CASH / Pay-at-Gym orders.
+    //    Online checkout orders (`paymentProvider` = stripe/custom) are created exclusively by
+    //    `createCheckoutSession` Cloud Function (Admin SDK) using authoritative Firestore prices.
+    // 2. Non-admin clients can NEVER mark `paymentStatus == 'paid'` or alter order totals.
+    // 3. Admins can update fulfillment status or manually mark cash orders paid (while preserving `total`).
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isValidId(orderId) &&
+        isSignedIn() &&
+        isValidOrder(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'pending' &&
+        (!('paymentProvider' in incoming()) || incoming().paymentProvider == 'cash') &&
+        (!('paymentStatus' in incoming()) || incoming().paymentStatus == 'unpaid') &&
+        !('paidAt' in incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(orderId) &&
+        isAdmin() &&
+        isValidOrder(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().total == existing().total &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+
+    // Attendance: owner or admin read/list; admin write
+    match /attendance/{recordId} {
+      allow get: if isValidId(recordId) && isSignedIn() && (isOwner(existing().memberId) || isAdmin());
+      allow list: if isAdmin() || (isSignedIn() && resource.data.memberId == request.auth.uid);
+      allow create: if isValidId(recordId) && isAdmin() && isValidAttendance(incoming()) &&
+        incoming().checkInTime == request.time && incoming().createdAt == request.time;
+      allow update, delete: if isValidId(recordId) && isAdmin();
+    }
+
+    // Contact Messages: public create-only (read == false); admin read/update/delete
+    match /messages/{messageId} {
+      allow get: if isValidId(messageId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(messageId) &&
+        isValidMessage(incoming()) &&
+        incoming().read == false &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(messageId) &&
+        isAdmin() &&
+        isValidMessage(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isValidId(messageId) && isAdmin();
+    }
+
+    // Newsletter Subscribers: public create-only; admin read/delete
+    match /newsletter/{subscriberId} {
+      allow get: if isValidId(subscriberId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(subscriberId) &&
+        isValidNewsletter(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(subscriberId) && isAdmin();
+    }
+
+    // Site Settings: public read, admin write
+    match /settings/{docId} {
+      allow get: if isValidId(docId);
+      allow list: if true;
+      allow create, update: if isValidId(docId) && isAdmin() && isValidSettings(incoming()) &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(docId) && isAdmin();
+    }
+
+    // STAGE 8 SECURITY UPDATE — Server-only Email Queue (`mail`) & Webhook Ledger (`webhookEvents`):
+    // Clients can never write to `mail` or read/write `webhookEvents`. Only Cloud Functions (Admin SDK)
+    // and the Firebase Trigger Email extension service account write here.
+    match /mail/{mailId} {
+      allow read: if isValidId(mailId) && isAdmin();
+      allow write: if false;
+    }
+
+    match /webhookEvents/{eventId} {
+      allow read, write: if false;
+    }
+  }
+}

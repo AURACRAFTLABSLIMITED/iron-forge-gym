@@ -1,0 +1,370 @@
+{
+  "entities": {
+    "AdminMarker": {
+      "title": "AdminMarker",
+      "description": "Marker document granting admin role to a Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 254 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "MemberProfile": {
+      "title": "MemberProfile",
+      "description": "Gym member profile and active membership metadata.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 254 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "photoURL": { "type": "string", "maxLength": 2000 },
+        "emergencyContact": { "type": "string", "maxLength": 200 },
+        "planId": { "type": "string", "maxLength": 128 },
+        "planName": { "type": "string", "maxLength": 120 },
+        "planStartDate": { "type": "string", "maxLength": 40 },
+        "planExpiryDate": { "type": "string", "maxLength": 40 },
+        "membershipStatus": { "type": "string", "enum": ["none", "active", "expired", "pending"] },
+        "role": { "type": "string", "enum": ["member", "admin"] },
+        "reminderSent": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "membershipStatus", "createdAt", "updatedAt"]
+    },
+    "Package": {
+      "title": "Package",
+      "description": "Membership pricing tier.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "audience": { "type": "string", "maxLength": 120 },
+        "price": { "type": "number" },
+        "billingCycle": { "type": "string", "enum": ["Monthly", "Quarterly", "Yearly", "Day Pass"] },
+        "durationDays": { "type": "number" },
+        "badgeText": { "type": "string", "maxLength": 40 },
+        "featured": { "type": "boolean" },
+        "features": { "type": "array" },
+        "description": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "billingCycle", "durationDays", "features", "createdAt", "updatedAt"]
+    },
+    "GymClass": {
+      "title": "GymClass",
+      "description": "Weekly scheduled fitness class.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "trainerId": { "type": "string", "maxLength": 128 },
+        "trainerName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "dayOfWeek": { "type": "string", "enum": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] },
+        "startTime": { "type": "string", "maxLength": 20 },
+        "endTime": { "type": "string", "maxLength": 20 },
+        "level": { "type": "string", "enum": ["Beginner", "Advanced", "Expert"] },
+        "capacity": { "type": "number" },
+        "bookedCount": { "type": "number" },
+        "room": { "type": "string", "maxLength": 80 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "category", "trainerName", "dayOfWeek", "startTime", "endTime", "level", "capacity", "createdAt", "updatedAt"]
+    },
+    "ClassBooking": {
+      "title": "ClassBooking",
+      "description": "Member reservation for a scheduled class.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 120 },
+        "userEmail": { "type": "string", "maxLength": 254 },
+        "classId": { "type": "string", "maxLength": 128 },
+        "classTitle": { "type": "string", "maxLength": 120 },
+        "dayOfWeek": { "type": "string", "maxLength": 10 },
+        "startTime": { "type": "string", "maxLength": 20 },
+        "trainerName": { "type": "string", "maxLength": 120 },
+        "status": { "type": "string", "enum": ["confirmed", "cancelled"] },
+        "cancellationReason": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "classId", "classTitle", "dayOfWeek", "startTime", "status", "createdAt", "updatedAt"]
+    },
+    "Trainer": {
+      "title": "Trainer",
+      "description": "Gym coach or personal trainer profile.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "specialty": { "type": "string", "maxLength": 120 },
+        "experienceYears": { "type": "number" },
+        "bio": { "type": "string", "maxLength": 1500 },
+        "photoUrl": { "type": "string", "maxLength": 2000 },
+        "certifications": { "type": "string", "maxLength": 400 },
+        "instagram": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "role", "specialty", "bio", "createdAt", "updatedAt"]
+    },
+    "BlogPost": {
+      "title": "BlogPost",
+      "description": "Editorial fitness and nutrition article.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "slug": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 60 },
+        "excerpt": { "type": "string", "maxLength": 400 },
+        "content": { "type": "string", "maxLength": 20000 },
+        "authorName": { "type": "string", "maxLength": 120 },
+        "coverImage": { "type": "string", "maxLength": 2000 },
+        "readTime": { "type": "string", "maxLength": 40 },
+        "published": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "category", "excerpt", "content", "authorName", "published", "createdAt", "updatedAt"]
+    },
+    "GalleryItem": {
+      "title": "GalleryItem",
+      "description": "Photo entry in the gym gallery.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "category": { "type": "string", "maxLength": 60 },
+        "imageUrl": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "caption": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "category", "imageUrl", "createdAt"]
+    },
+    "GymEvent": {
+      "title": "GymEvent",
+      "description": "Upcoming gym competition, seminar, or community event.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "date": { "type": "string", "maxLength": 40 },
+        "time": { "type": "string", "maxLength": 40 },
+        "location": { "type": "string", "maxLength": 160 },
+        "category": { "type": "string", "maxLength": 60 },
+        "description": { "type": "string", "maxLength": 4000 },
+        "imageUrl": { "type": "string", "maxLength": 2000 },
+        "price": { "type": "number" },
+        "capacity": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "date", "time", "location", "category", "description", "createdAt", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Gym shop merchandise or supplement item.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "category": { "type": "string", "maxLength": 60 },
+        "price": { "type": "number" },
+        "compareAtPrice": { "type": "number" },
+        "stock": { "type": "number" },
+        "description": { "type": "string", "maxLength": 3000 },
+        "imageUrl": { "type": "string", "maxLength": 2000 },
+        "featured": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category", "price", "stock", "description", "createdAt", "updatedAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Shop or membership checkout order.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "customerEmail": { "type": "string", "maxLength": 254 },
+        "customerPhone": { "type": "string", "maxLength": 40 },
+        "shippingAddress": { "type": "string", "maxLength": 400 },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "paymentMethod": { "type": "string", "maxLength": 80 },
+        "paymentProvider": { "type": "string", "enum": ["cash", "stripe", "custom"] },
+        "paymentStatus": { "type": "string", "enum": ["unpaid", "paid"] },
+        "orderType": { "type": "string", "enum": ["shop", "membership"] },
+        "packageId": { "type": "string", "maxLength": 128 },
+        "packageName": { "type": "string", "maxLength": 120 },
+        "packageDurationDays": { "type": "number" },
+        "providerSessionId": { "type": "string", "maxLength": 256 },
+        "providerRef": { "type": "string", "maxLength": 256 },
+        "status": { "type": "string", "enum": ["pending", "processing", "ready", "completed", "cancelled"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "paidAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "customerName", "customerEmail", "customerPhone", "items", "total", "paymentMethod", "orderType", "status", "createdAt", "updatedAt"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Member front-desk check-in log.",
+      "type": "object",
+      "properties": {
+        "memberId": { "type": "string", "maxLength": 128 },
+        "memberName": { "type": "string", "maxLength": 120 },
+        "memberPhone": { "type": "string", "maxLength": 40 },
+        "checkedInBy": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 300 },
+        "checkInTime": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["memberId", "memberName", "checkedInBy", "checkInTime", "createdAt"]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "Inbound message from public contact form.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "minLength": 3, "maxLength": 254 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "subject", "message", "read", "createdAt"]
+    },
+    "NewsletterSubscriber": {
+      "title": "NewsletterSubscriber",
+      "description": "Email subscriber for gym updates.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "minLength": 3, "maxLength": 254 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Admin-editable white-label branding and configuration overrides.",
+      "type": "object",
+      "properties": {
+        "gymName": { "type": "string", "maxLength": 120 },
+        "tagline": { "type": "string", "maxLength": 200 },
+        "logoUrl": { "type": "string", "maxLength": 2000 },
+        "accentColor": { "type": "string", "maxLength": 20 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "email": { "type": "string", "maxLength": 254 },
+        "address": { "type": "string", "maxLength": 300 },
+        "mapEmbedUrl": { "type": "string", "maxLength": 2000 },
+        "currencySymbol": { "type": "string", "maxLength": 10 },
+        "paymentProvider": { "type": "string", "enum": ["cash", "stripe", "custom"] },
+        "workingHours": { "type": "array" },
+        "heroSlides": { "type": "array" },
+        "classCategories": { "type": "array" },
+        "socialLinks": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["gymName", "accentColor", "updatedAt"]
+    },
+    "MailMessage": {
+      "title": "MailMessage",
+      "description": "Email queue documents processed by Firebase Trigger Email extension.",
+      "type": "object",
+      "properties": {
+        "to": { "type": "array" },
+        "message": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["to", "message", "createdAt"]
+    },
+    "WebhookEvent": {
+      "title": "WebhookEvent",
+      "description": "Idempotency ledger for processed payment gateway webhook events.",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string", "maxLength": 128 },
+        "processedAt": { "type": "string", "format": "date-time" },
+        "note": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["orderId", "processedAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminMarker" },
+      "description": "Admin role marker documents keyed by Firebase Auth UID."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/MemberProfile" },
+      "description": "Member profiles containing private PII and membership status."
+    },
+    "/packages/{packageId}": {
+      "schema": { "$ref": "#/entities/Package" },
+      "description": "Gym membership plans."
+    },
+    "/classes/{classId}": {
+      "schema": { "$ref": "#/entities/GymClass" },
+      "description": "Weekly class schedule entries."
+    },
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/ClassBooking" },
+      "description": "Member class reservations."
+    },
+    "/trainers/{trainerId}": {
+      "schema": { "$ref": "#/entities/Trainer" },
+      "description": "Coach and personal trainer profiles."
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/BlogPost" },
+      "description": "Blog articles and training guides."
+    },
+    "/gallery/{itemId}": {
+      "schema": { "$ref": "#/entities/GalleryItem" },
+      "description": "Facility and training photography."
+    },
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/GymEvent" },
+      "description": "Upcoming gym events and workshops."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Shop products and supplements."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Shop and membership orders."
+    },
+    "/attendance/{recordId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Member check-in attendance logs."
+    },
+    "/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ContactMessage" },
+      "description": "Contact form submissions."
+    },
+    "/newsletter/{subscriberId}": {
+      "schema": { "$ref": "#/entities/NewsletterSubscriber" },
+      "description": "Newsletter email subscribers."
+    },
+    "/settings/{docId}": {
+      "schema": { "$ref": "#/entities/SiteSettings" },
+      "description": "White-label site settings overrides."
+    },
+    "/mail/{mailId}": {
+      "schema": { "$ref": "#/entities/MailMessage" },
+      "description": "Outbound transactional email queue written exclusively by Cloud Functions Admin SDK."
+    },
+    "/webhookEvents/{eventId}": {
+      "schema": { "$ref": "#/entities/WebhookEvent" },
+      "description": "Idempotency records written exclusively by paymentWebhook Cloud Function."
+    }
+  }
+}

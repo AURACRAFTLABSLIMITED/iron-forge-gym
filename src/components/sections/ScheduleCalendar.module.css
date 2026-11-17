@@ -1,0 +1,56 @@
+/**
+ * Created by AURA CRAFT LABS LIMITED.
+ * File: src/components/sections/ScheduleCalendar.module.css
+ * Purpose: CSS Module for responsive weekly timetable grid (desktop) and day tabs (mobile).
+ */
+
+.grid {
+  /* Hidden on phones/tablets (the day-tab list is used there). Do NOT set display here
+     unconditionally: a CSS Module rule would override Tailwind's `hidden` utility and the
+     7-column desktop grid would be squeezed under the mobile list. */
+  display: none;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    display: grid;
+  }
+}
+
+.dayColumn {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+}
+
+.dayHeader {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-hairline);
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.classCard {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  transition: border-color var(--transition-fast);
+}
+
+.classCard:hover {
+  border-color: var(--accent);
+}
